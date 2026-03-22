@@ -1,49 +1,56 @@
 import os
-import smtplib
 import html
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import json
+import urllib.request
 from dotenv import load_dotenv
 import markdown
 
 load_dotenv()
 
 MY_EMAIL = os.getenv("MY_EMAIL")
-APP_PASSWORD = os.getenv("APP_PASSWORD")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 
 def send_email(subject: str, body_text: str, body_html: str = None, recipients: list = None):
     if recipients is None:
-        if not MY_EMAIL:
-            raise ValueError("MY_EMAIL environment variable is not set")
         recipients = [MY_EMAIL]
-    
-    recipients = [r for r in recipients if r is not None]
+
+    recipients = [r for r in recipients if r and r.strip()]
     if not recipients:
         raise ValueError("No valid recipients provided")
-    
-    if not MY_EMAIL:
-        raise ValueError("MY_EMAIL environment variable is not set")
-    if not APP_PASSWORD:
-        raise ValueError("APP_PASSWORD environment variable is not set")
-    
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = MY_EMAIL
-    msg["To"] = ", ".join(recipients)
-    
-    part1 = MIMEText(body_text, "plain")
-    msg.attach(part1)
-    
+
+    if not RESEND_API_KEY:
+        raise ValueError("RESEND_API_KEY not set")
+
+    # Resend free tier: can only send FROM onboarding@resend.dev unless domain is verified
+    from_email = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+
+    payload = {
+        "from": from_email,
+        "to": recipients,
+        "subject": subject,
+        "text": body_text,
+    }
     if body_html:
-        part2 = MIMEText(body_html, "html")
-        msg.attach(part2)
-    
-    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.login(MY_EMAIL, APP_PASSWORD)
-        smtp.sendmail(MY_EMAIL, recipients, msg.as_string())
+        payload["html"] = body_html
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            if resp.status not in (200, 201):
+                raise Exception(f"Resend error: {resp.status}")
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        raise Exception(f"Resend error {e.code}: {error_body}")
 
 
 def markdown_to_html(markdown_text: str) -> str:
