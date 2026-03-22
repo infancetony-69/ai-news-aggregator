@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+import requests
 import feedparser
-from docling.document_converter import DocumentConverter
+from markdownify import markdownify
 from pydantic import BaseModel
 
 
@@ -21,24 +22,23 @@ class AnthropicScraper:
             "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_research.xml",
             "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_engineering.xml",
         ]
-        self.converter = DocumentConverter()
 
     def get_articles(self, hours: int = 24) -> List[AnthropicArticle]:
         now = datetime.now(timezone.utc)
         cutoff_time = now - timedelta(hours=hours)
         articles = []
         seen_guids = set()
-        
+
         for rss_url in self.rss_urls:
             feed = feedparser.parse(rss_url)
             if not feed.entries:
                 continue
-            
+
             for entry in feed.entries:
                 published_parsed = getattr(entry, "published_parsed", None)
                 if not published_parsed:
                     continue
-                
+
                 published_time = datetime(*published_parsed[:6], tzinfo=timezone.utc)
                 if published_time >= cutoff_time:
                     guid = entry.get("id", entry.get("link", ""))
@@ -52,13 +52,14 @@ class AnthropicScraper:
                             published_at=published_time,
                             category=entry.get("tags", [{}])[0].get("term") if entry.get("tags") else None
                         ))
-        
+
         return articles
 
     def url_to_markdown(self, url: str) -> Optional[str]:
         try:
-            result = self.converter.convert(url)
-            return result.document.export_to_markdown()
+            response = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+            response.raise_for_status()
+            return markdownify(response.text, heading_style="ATX")
         except Exception:
             return None
 

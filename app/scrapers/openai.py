@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import feedparser
-from docling.document_converter import DocumentConverter
 from pydantic import BaseModel
 
 
