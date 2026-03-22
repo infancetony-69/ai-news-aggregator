@@ -19,7 +19,7 @@ _pipeline_status = {
 }
 
 
-def _run_pipeline_sync(hours: int = 24, top_n: int = 10):
+def _run_pipeline_sync(hours: int = 336, top_n: int = 10):
     from app.daily_runner import run_daily_pipeline
     if _pipeline_status["running"]:
         return
@@ -40,6 +40,26 @@ scheduler.add_job(
     hour=8,
     minute=0,
     id="daily_pipeline",
+    replace_existing=True
+)
+
+
+def _keep_alive():
+    """Pings own /health to prevent Render free tier from sleeping."""
+    import requests
+    app_url = os.getenv("RENDER_EXTERNAL_URL")
+    if app_url:
+        try:
+            requests.get(f"{app_url}/health", timeout=10)
+        except Exception:
+            pass
+
+
+scheduler.add_job(
+    _keep_alive,
+    trigger="interval",
+    minutes=10,
+    id="keep_alive",
     replace_existing=True
 )
 
@@ -72,7 +92,7 @@ app.add_middleware(
 
 
 class PipelineRequest(BaseModel):
-    hours: int = 24
+    hours: int = 336  # 14 days default — catches slow publishers like Anthropic
     top_n: int = 10
 
 
