@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_database_url() -> str:
+    # Render provides a single DATABASE_URL — use it if available
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # Render uses postgres:// but SQLAlchemy needs postgresql://
+        return database_url.replace("postgres://", "postgresql://", 1)
     user = os.getenv("POSTGRES_USER", "postgres")
     password = os.getenv("POSTGRES_PASSWORD", "postgres")
     host = os.getenv("POSTGRES_HOST", "localhost")
