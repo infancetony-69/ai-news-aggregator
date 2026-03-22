@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: ai-news-aggregator
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: MY_EMAIL
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: EXTRA_RECIPIENTS
+        sync: false
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: ai-news-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: ai-news-db
+          property: port
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: ai-news-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: ai-news-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: ai-news-db
+          property: database
+
+databases:
+  - name: ai-news-db
+    databaseName: ai_news_aggregator
+    plan: free
