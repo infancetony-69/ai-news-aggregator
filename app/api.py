@@ -19,7 +19,7 @@ _pipeline_status = {
 }
 
 
-def _run_pipeline_sync(hours: int = 336, top_n: int = 10):
+def _run_pipeline_sync(hours: int = 24, top_n: int = 10):
     from app.daily_runner import run_daily_pipeline
     if _pipeline_status["running"]:
         return
@@ -44,31 +44,8 @@ scheduler.add_job(
 )
 
 
-def _keep_alive():
-    """Pings own /health to prevent Render free tier from sleeping."""
-    import requests
-    app_url = os.getenv("RENDER_EXTERNAL_URL")
-    if app_url:
-        try:
-            requests.get(f"{app_url}/health", timeout=10)
-        except Exception:
-            pass
-
-
-scheduler.add_job(
-    _keep_alive,
-    trigger="interval",
-    minutes=10,
-    id="keep_alive",
-    replace_existing=True
-)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create tables on startup (safe to run multiple times)
-    from app.database.create_tables import create_tables
-    create_tables()
     scheduler.start()
     print("Scheduler started — pipeline will run daily at 8:00 AM")
     yield
@@ -92,7 +69,7 @@ app.add_middleware(
 
 
 class PipelineRequest(BaseModel):
-    hours: int = 336  # 14 days default — catches slow publishers like Anthropic
+    hours: int = 24
     top_n: int = 10
 
 
