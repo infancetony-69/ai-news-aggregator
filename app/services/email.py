@@ -39,7 +39,9 @@ def send_email(subject: str, body_text: str, body_html: str = None, recipients: 
         part2 = MIMEText(body_html, "html")
         msg.attach(part2)
     
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
         smtp.login(MY_EMAIL, APP_PASSWORD)
         smtp.sendmail(MY_EMAIL, recipients, msg.as_string())
 
